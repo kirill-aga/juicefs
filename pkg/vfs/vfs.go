@@ -1136,7 +1136,7 @@ func (v *VFS) SetXattr(ctx Context, ino Ino, name string, value []byte, flags ui
 
 func (v *VFS) GetXattr(ctx Context, ino Ino, name string, size uint32) (value []byte, err syscall.Errno) {
 	if !isXattrEnabled(v.Conf, name) {
-		err = syscall.ENODATA
+		err = meta.ENOATTR
 		return
 	}
 
