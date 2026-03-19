@@ -34,9 +34,8 @@ chmod 755 "${STAGING}/etc/rc.d/juicefs"
 mkdir -p "${STAGING}/etc/juicefs"
 cp deploy/openbsd/juicefs.env.sample "${STAGING}/etc/juicefs/juicefs.env.sample"
 
-# Create packing list (no @name — pkg_create derives it from the output filename)
+# Create packing list
 cat > "${STAGING}/+CONTENTS" << EOF
-@comment POSIX-compliant distributed filesystem
 @pkgpath sysutils/juicefs
 @cwd /usr/local
 bin/juicefs
@@ -51,6 +50,7 @@ cp deploy/openbsd/DESCR "${STAGING}/+DESC"
 # Build the package into the output directory
 mkdir -p "${OUTPUT_DIR}"
 pkg_create -B "${STAGING}" -p / \
+  -D COMMENT="POSIX-compliant distributed filesystem" \
   -d "${STAGING}/+DESC" \
   -f "${STAGING}/+CONTENTS" \
   "${OUTPUT_DIR}/${PKG_NAME}.tgz"
