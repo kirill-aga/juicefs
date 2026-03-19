@@ -38,7 +38,6 @@ cp deploy/openbsd/juicefs.env.sample "${STAGING}/etc/juicefs/juicefs.env.sample"
 cat > "${STAGING}/+CONTENTS" << EOF
 @comment POSIX-compliant distributed filesystem
 @pkgpath sysutils/juicefs
-@arch $(uname -m)
 @cwd /usr/local
 bin/juicefs
 @cwd /
