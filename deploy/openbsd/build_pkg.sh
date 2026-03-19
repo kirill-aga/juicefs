@@ -19,6 +19,7 @@ if [ -z "$VERSION" ]; then
 fi
 
 PKG_NAME="juicefs-${VERSION}"
+OUTPUT_DIR="/build/gitlab-runner/builds/openbsd7.8/amd64/juicefs"
 STAGING=$(mktemp -d)
 
 # Install files into staging directory
@@ -33,9 +34,8 @@ chmod 755 "${STAGING}/etc/rc.d/juicefs"
 mkdir -p "${STAGING}/etc/juicefs"
 cp deploy/openbsd/juicefs.env.sample "${STAGING}/etc/juicefs/juicefs.env.sample"
 
-# Create packing list
+# Create packing list (no @name — pkg_create derives it from the output filename)
 cat > "${STAGING}/+CONTENTS" << EOF
-@name ${PKG_NAME}
 @comment POSIX-compliant distributed filesystem
 @pkgpath sysutils/juicefs
 @arch $(uname -m)
@@ -49,13 +49,14 @@ EOF
 # Create description
 cp deploy/openbsd/DESCR "${STAGING}/+DESC"
 
-# Build the package
+# Build the package into the output directory
+mkdir -p "${OUTPUT_DIR}"
 pkg_create -B "${STAGING}" -p / \
   -d "${STAGING}/+DESC" \
   -f "${STAGING}/+CONTENTS" \
-  "${PKG_NAME}.tgz"
+  "${OUTPUT_DIR}/${PKG_NAME}.tgz"
 
-echo "Package created: ${PKG_NAME}.tgz"
+echo "Package created: ${OUTPUT_DIR}/${PKG_NAME}.tgz"
 
 # Cleanup
 rm -rf "${STAGING}"

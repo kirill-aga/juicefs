@@ -46,5 +46,5 @@ package:
     - sh deploy/openbsd/build_pkg.sh
   artifacts:
     paths:
-      - juicefs-*.tgz
+      - /build/gitlab-runner/builds/openbsd7.8/amd64/juicefs/juicefs-*.tgz
     expire_in: 1 week
