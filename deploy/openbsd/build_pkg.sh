@@ -35,13 +35,15 @@ mkdir -p "${STAGING}/etc/juicefs"
 cp deploy/openbsd/juicefs.env.sample "${STAGING}/etc/juicefs/juicefs.env.sample"
 
 # Create packing list
-cat > "${STAGING}/+CONTENTS" << EOF
+cat > "${STAGING}/+CONTENTS" << 'EOF'
 @pkgpath sysutils/juicefs
 @cwd /usr/local
 bin/juicefs
 @cwd /
 etc/rc.d/juicefs
 etc/juicefs/juicefs.env.sample
+@exec grep -q juicefs.log /etc/newsyslog.conf || echo "/var/log/juicefs.log 640 7 1000 * Z" >> /etc/newsyslog.conf
+@unexec sed -i.bak '/juicefs\.log/d' /etc/newsyslog.conf && rm -f /etc/newsyslog.conf.bak
 EOF
 
 # Create description
