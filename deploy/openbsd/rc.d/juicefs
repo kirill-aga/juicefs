@@ -1,5 +1,9 @@
 #!/bin/ksh
-# /etc/rc.d/juicefs - OpenBSD rc.d script for JuiceFS mount
+# /etc/rc.d/juicefs - OpenBSD rc.d script for JuiceFS mounts
+#
+# Supports multiple mounts: create one .env file per mount in /etc/juicefs/
+# Example: /etc/juicefs/backup.env, /etc/juicefs/data.env
+# Each file must define JUICEFS_META_URL and JUICEFS_MOUNT_POINT.
 
 daemon="/usr/local/bin/juicefs"
 daemon_flags="mount"
@@ -9,19 +13,28 @@ daemon_flags="mount"
 rc_bg=YES
 rc_reload=NO
 
+_mount_one() {
+  local _envfile=$1
+  (
+    # Subshell to isolate env vars between mounts
+    . "$_envfile"
+    export JUICEFS_META_URL JUICEFS_MOUNT_POINT
+    : ${JUICEFS_MOUNT_POINT:=/mnt/juicefs}
+    : ${JUICEFS_LOG_FILE:=/var/log/juicefs.log}
+    mkdir -p "$JUICEFS_MOUNT_POINT"
+    # Detach from rc.d process tree
+    ${daemon} mount -d --log "$JUICEFS_LOG_FILE" \
+      "$JUICEFS_META_URL" "$JUICEFS_MOUNT_POINT" &
+  )
+}
+
 rc_start() {
-  . /etc/juicefs/juicefs.env
-  export JUICEFS_META_URL JUICEFS_MOUNT_POINT
-  : ${JUICEFS_MOUNT_POINT:=/mnt/juicefs}
-  : ${JUICEFS_LOG_FILE:=/var/log/juicefs.log}
-  mkdir -p "$JUICEFS_MOUNT_POINT"
   # Remove stale graceful-upgrade sockets to avoid 10s timeout
   rm -f /tmp/fuse_fd_comm.*
-  # Run with -d (daemon mode) for syslog + --log for file logging
-  # Subshell + & detaches from rc.d process tree so
-  # rc.subr cleanup (pkill -P $$) won't kill it
-  (${daemon} mount -d --log "$JUICEFS_LOG_FILE" \
-    "$JUICEFS_META_URL" "$JUICEFS_MOUNT_POINT" &)
+  for _env in /etc/juicefs/*.env; do
+    [ -f "$_env" ] || continue
+    _mount_one "$_env"
+  done
 }
 
 rc_stop() {
