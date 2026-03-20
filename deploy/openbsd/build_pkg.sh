@@ -49,9 +49,9 @@ cp deploy/openbsd/DESCR "${STAGING}/+DESC"
 
 # Build the package into the output directory
 mkdir -p "${OUTPUT_DIR}"
+# No package dependency on fuse — libfuse.so is part of the OpenBSD base system
 pkg_create -B "${STAGING}" -p / \
   -D COMMENT="POSIX-compliant distributed filesystem" \
-  -P "fuse-*:fuse->=20200101:sysutils/fuse" \
   -d "${STAGING}/+DESC" \
   -f "${STAGING}/+CONTENTS" \
   "${OUTPUT_DIR}/${PKG_NAME}.tgz"

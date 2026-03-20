@@ -26,8 +26,8 @@ build:
     # Download dependencies and patch go-fuse/godaemon for OpenBSD
     - env GOTOOLCHAIN=local GONOSUMCHECK='*' GOFLAGS='-mod=mod' go mod download
     - sh hack/openbsd_patch_deps.sh
-    # Build with OpenBSD-compatible flags
-    - env GOTOOLCHAIN=local GONOSUMCHECK='*' GOFLAGS='-mod=mod -buildvcs=false' go build -ldflags="-s -w" -o ${BINARY_NAME} .
+    # Build with OpenBSD-compatible flags (CGO required for cgofuse/libfuse)
+    - env CGO_ENABLED=1 GOTOOLCHAIN=local GONOSUMCHECK='*' GOFLAGS='-mod=mod -buildvcs=false' go build -ldflags="-s -w" -o ${BINARY_NAME} .
     - ./${BINARY_NAME} version
   artifacts:
     paths:
