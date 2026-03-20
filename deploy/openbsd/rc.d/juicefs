@@ -1,0 +1,35 @@
+#!/bin/ksh
+# /etc/rc.d/juicefs - OpenBSD rc.d script for JuiceFS mount
+
+daemon="/usr/local/bin/juicefs"
+daemon_flags="mount"
+
+. /etc/rc.d/rc.subr
+
+rc_bg=YES
+rc_reload=NO
+
+rc_start() {
+  . /etc/juicefs/juicefs.env
+  export JUICEFS_META_URL JUICEFS_MOUNT_POINT
+  : ${JUICEFS_MOUNT_POINT:=/mnt/juicefs}
+  : ${JUICEFS_LOG_FILE:=/var/log/juicefs.log}
+  mkdir -p "$JUICEFS_MOUNT_POINT"
+  # Remove stale graceful-upgrade sockets to avoid 10s timeout
+  rm -f /tmp/fuse_fd_comm.*
+  # Run with -d (daemon mode) for syslog + --log for file logging
+  # Subshell + & detaches from rc.d process tree so
+  # rc.subr cleanup (pkill -P $$) won't kill it
+  (${daemon} mount -d --log "$JUICEFS_LOG_FILE" \
+    "$JUICEFS_META_URL" "$JUICEFS_MOUNT_POINT" &)
+}
+
+rc_stop() {
+  pkill -f "juicefs mount"
+}
+
+rc_check() {
+  pgrep -q -f "juicefs mount"
+}
+
+rc_cmd $1

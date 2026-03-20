@@ -1,0 +1,50 @@
+stages:
+  - wake-up
+  - build
+  - package
+
+variables:
+  BINARY_NAME: juicefs
+
+# --- Stage 1: Wake the OpenBSD builder VM ---
+etherwake:
+  tags:
+    - etherwake
+  stage: wake-up
+  script:
+    - echo "Waking up OpenBSD build VM"
+    - ~/wake_up_build_openbsd.sh
+
+# --- Stage 2: Build JuiceFS for OpenBSD ---
+build:
+  stage: build
+  tags:
+    - openbsd
+    - openbsd7.8
+  script:
+    - go version
+    # Download dependencies and patch go-fuse/godaemon for OpenBSD
+    - env GOTOOLCHAIN=local GONOSUMCHECK='*' GOFLAGS='-mod=mod' go mod download
+    - sh hack/openbsd_patch_deps.sh
+    # Build with OpenBSD-compatible flags (CGO required for cgofuse/libfuse)
+    - env CGO_ENABLED=1 GOTOOLCHAIN=local GONOSUMCHECK='*' GOFLAGS='-mod=mod -buildvcs=false' go build -ldflags="-s -w" -o ${BINARY_NAME} .
+    - ./${BINARY_NAME} version
+  artifacts:
+    paths:
+      - ${BINARY_NAME}
+    expire_in: 1 hour
+
+# --- Stage 3: Create OpenBSD package ---
+package:
+  stage: package
+  tags:
+    - openbsd
+    - openbsd7.8
+  dependencies:
+    - build
+  script:
+    - sh deploy/openbsd/build_pkg.sh
+  artifacts:
+    paths:
+      - /build/gitlab-runner/builds/openbsd7.8/amd64/juicefs/juicefs-*.tgz
+    expire_in: 1 week

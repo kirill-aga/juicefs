@@ -1,5 +1,5 @@
-//go:build !windows && !openbsd
-// +build !windows,!openbsd
+//go:build openbsd
+// +build openbsd
 
 /*
  * JuiceFS, Copyright 2020 Juicedata, Inc.
@@ -34,7 +34,10 @@ func getNlink(fi os.FileInfo) int {
 func getDiskUsage(path string) (uint64, uint64, uint64, uint64) {
 	var stat syscall.Statfs_t
 	if err := syscall.Statfs(path, &stat); err == nil {
-		return stat.Blocks * uint64(stat.Bsize), stat.Bavail * uint64(stat.Bsize), stat.Files, stat.Ffree
+		return uint64(stat.F_blocks) * uint64(stat.F_bsize),
+			uint64(stat.F_bavail) * uint64(stat.F_bsize),
+			stat.F_files,
+			uint64(stat.F_ffree)
 	} else {
 		logger.Warnf("statfs %s: %s", path, err)
 		return 1, 1, 1, 1
@@ -51,12 +54,10 @@ func changeMode(dir string, st os.FileInfo, mode os.FileMode) {
 func inRootVolume(dir string) bool {
 	dstat, err := os.Stat(dir)
 	if err != nil {
-		logger.Warnf("stat `%s`: %s", dir, err.Error())
 		return false
 	}
 	rstat, err := os.Stat("/")
 	if err != nil {
-		logger.Warnf("stat `/`: %s", err.Error())
 		return false
 	}
 	return dstat.Sys().(*syscall.Stat_t).Dev == rstat.Sys().(*syscall.Stat_t).Dev
