@@ -510,4 +510,22 @@ if [ -n "$GODAEMON_DIR" ] && [ -f "$GODAEMON_DIR/daemon.go" ]; then
   fi
 fi
 
+##############################################################################
+# cgofuse patch - fix libfuse.so version for OpenBSD 7.8+
+# OpenBSD 7.4 shipped libfuse.so.2.0, but 7.8 ships libfuse.so.3.0
+##############################################################################
+CGOFUSE_DIR=$(find "$(go env GOMODCACHE)" -path '*/winfsp/cgofuse@*' -type d 2>/dev/null | head -1)
+if [ -n "$CGOFUSE_DIR" ] && [ -f "$CGOFUSE_DIR/fuse/host_cgo.go" ]; then
+  chmod -R u+w "$CGOFUSE_DIR"
+  # Detect actual libfuse.so version on the system
+  LIBFUSE_SO=$(ls /usr/lib/libfuse.so.* 2>/dev/null | head -1)
+  if [ -n "$LIBFUSE_SO" ]; then
+    LIBFUSE_NAME=$(basename "$LIBFUSE_SO")
+    if ! grep -q "$LIBFUSE_NAME" "$CGOFUSE_DIR/fuse/host_cgo.go"; then
+      sed -i.bak "s|dlopen(\"libfuse.so.2.0\"|dlopen(\"$LIBFUSE_NAME\"|" "$CGOFUSE_DIR/fuse/host_cgo.go"
+      echo "Patched cgofuse to use $LIBFUSE_NAME"
+    fi
+  fi
+fi
+
 echo "=== OpenBSD dependency patching complete ==="
