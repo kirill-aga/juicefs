@@ -13,12 +13,14 @@ rc_start() {
   . /etc/juicefs/juicefs.env
   export JUICEFS_META_URL JUICEFS_MOUNT_POINT
   : ${JUICEFS_MOUNT_POINT:=/mnt/juicefs}
+  : ${JUICEFS_LOG_FILE:=/var/log/juicefs.log}
   mkdir -p "$JUICEFS_MOUNT_POINT"
   # Remove stale graceful-upgrade sockets to avoid 10s timeout
   rm -f /tmp/fuse_fd_comm.*
   # Subshell + & detaches daemon from rc.d process tree so
   # rc.subr cleanup (pkill -P $$) won't kill it
-  (${daemon} mount "$JUICEFS_META_URL" "$JUICEFS_MOUNT_POINT" </dev/null >/dev/null 2>&1 &)
+  (${daemon} mount "$JUICEFS_META_URL" "$JUICEFS_MOUNT_POINT" \
+    </dev/null >>"$JUICEFS_LOG_FILE" 2>&1 &)
 }
 
 rc_stop() {
