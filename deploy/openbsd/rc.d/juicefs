@@ -1,6 +1,8 @@
 #!/bin/ksh
 # /etc/rc.d/juicefs - OpenBSD rc.d script for JuiceFS mount
-# Logs go to syslog daemon facility → /var/log/daemon
+# Logs go to syslog (LOG_USER facility) → /var/log/messages by default
+# To route to a separate file, add to /etc/syslog.conf:
+#   user.info  /var/log/juicefs.log
 
 daemon="/usr/local/bin/juicefs"
 daemon_flags="mount"
@@ -17,11 +19,8 @@ rc_start() {
   mkdir -p "$JUICEFS_MOUNT_POINT"
   # Remove stale graceful-upgrade sockets to avoid 10s timeout
   rm -f /tmp/fuse_fd_comm.*
-  # Subshell + & detaches daemon from rc.d process tree so
-  # rc.subr cleanup (pkill -P $$) won't kill it
-  # stdout/stderr to /dev/null — logging goes via syslog (daemon facility)
-  (${daemon} mount "$JUICEFS_META_URL" "$JUICEFS_MOUNT_POINT" \
-    </dev/null >/dev/null 2>&1 &)
+  # Run with -d (background/daemon mode) which enables syslog logging
+  ${daemon} mount -d "$JUICEFS_META_URL" "$JUICEFS_MOUNT_POINT"
 }
 
 rc_stop() {
