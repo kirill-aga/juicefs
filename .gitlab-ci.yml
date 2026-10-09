@@ -1,0 +1,89 @@
+stages:
+  - wake-up
+  - build
+  - package
+  - smoke
+
+variables:
+  BINARY_NAME: juicefs
+  # Tested packages are copied here on the builder
+  PKG_PUBLISH_DIR: /build/gitlab-runner/builds/openbsd7.8/amd64/juicefs
+
+# Branch pipelines only: pushing a tag (e.g. pre-sync/*) must not start one.
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - when: always
+
+# --- Stage 1: Wake the OpenBSD builder VM ---
+etherwake:
+  tags:
+    - etherwake
+  stage: wake-up
+  script:
+    - echo "Waking up OpenBSD build VM"
+    - ~/wake_up_build_openbsd.sh
+
+# --- Stage 2: Build JuiceFS for OpenBSD ---
+build:
+  stage: build
+  tags:
+    - openbsd
+    - openbsd7.8
+  script:
+    # The doas rule for the smoke stage is written from these two values
+    - echo "runner user $(id -un), CI_PROJECT_DIR=${CI_PROJECT_DIR}"
+    # Stop early if the builder's Go is older than go.mod requires
+    - sh hack/openbsd_check_go.sh
+    - go version
+    # Download dependencies and patch go-fuse/godaemon for OpenBSD
+    - env GOTOOLCHAIN=local GONOSUMCHECK='*' GOFLAGS='-mod=mod' go mod download
+    - sh hack/openbsd_patch_deps.sh
+    # Build with OpenBSD-compatible flags (CGO required for cgofuse/libfuse)
+    - env CGO_ENABLED=1 GOTOOLCHAIN=local GONOSUMCHECK='*' GOFLAGS='-mod=mod -buildvcs=false' go build -ldflags="-s -w" -o ${BINARY_NAME} .
+    - ./${BINARY_NAME} version
+  artifacts:
+    paths:
+      - ${BINARY_NAME}
+    expire_in: 1 hour
+
+# --- Stage 3: Create OpenBSD package ---
+package:
+  stage: package
+  tags:
+    - openbsd
+    - openbsd7.8
+  dependencies:
+    - build
+  script:
+    - sh deploy/openbsd/build_pkg.sh
+  artifacts:
+    paths:
+      - juicefs-*.tgz
+    expire_in: 1 week
+
+# --- Stage 4: Install the package and mount a throwaway volume ---
+# Needs a doas rule on the builder; see docs/openbsd/upstream-sync.md.
+smoke:
+  stage: smoke
+  tags:
+    - openbsd
+    - openbsd7.8
+  # The test installs a package system-wide: never run two at once.
+  resource_group: openbsd-builder
+  timeout: 15 minutes
+  dependencies:
+    - package
+  script:
+    # Without root the script must refuse and change nothing
+    - if sh hack/openbsd_smoke_test.sh; then echo "smoke test must refuse to run without root"; exit 1; fi
+    # A run that dies as if the builder lost power must not block the next one
+    - touch .smoke-simulate-crash
+    - if doas /bin/sh "${CI_PROJECT_DIR}/hack/openbsd_smoke_test.sh"; then echo "the simulated crash run must not succeed"; exit 1; fi
+    - rm -f .smoke-simulate-crash
+    - doas /bin/sh "${CI_PROJECT_DIR}/hack/openbsd_smoke_test.sh"
+    # Only a package that passed the smoke test is published
+    - mkdir -p "${PKG_PUBLISH_DIR}"
+    - cp juicefs-*.tgz "${PKG_PUBLISH_DIR}/"
+    - ls -l "${PKG_PUBLISH_DIR}"
