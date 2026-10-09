@@ -1,0 +1,4 @@
+JuiceFS is a high-performance POSIX-compliant distributed filesystem.
+It stores metadata in a pluggable engine (Redis, MySQL, PostgreSQL, etc.)
+and data in object storage (S3, MinIO, etc.), providing strong consistency,
+POSIX compatibility, and cloud-native scalability.
